@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paper III — Acoustic Side Channels · read the leak</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600&family=Spectral:ital,wght@0,300;0,400;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--sea:#170d20;--line:rgba(154,152,166,.16);--lead:#9a98a6;--lead-dim:#5b5868;
+    --parch:#e9e2d2;--parch-dim:#b9b2a3;--gold:#d9a441;--gold-dim:#a87f33;--verd:#73b3a3;--murex:#b24a78;--leak:#d07a4f;}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:var(--sea);color:var(--parch);font-family:"Spectral",Georgia,serif;line-height:1.58;
+    -webkit-font-smoothing:antialiased;background-image:radial-gradient(1100px 560px at 82% -12%,rgba(208,122,79,.13),transparent 60%),
+      radial-gradient(820px 640px at 3% 112%,rgba(115,179,163,.07),transparent 55%);display:flex;justify-content:center}
+  .card{max-width:660px;width:100%;padding:34px 24px 54px}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold-dim)}
+  h1{font-family:"Cormorant Garamond",serif;font-weight:300;font-size:clamp(40px,11vw,66px);margin:6px 0 0;line-height:.94;letter-spacing:-.5px}
+  h1 .gk{display:block;font-size:.32em;color:var(--lead);letter-spacing:.04em;margin-top:8px;font-style:italic}
+  .sub{font-style:italic;font-weight:300;color:var(--parch-dim);font-size:16px;margin:16px 0 0;max-width:58ch}
+  .sub b{color:var(--leak);font-style:normal;font-weight:400}
+  h2{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold-dim);
+    margin:32px 0 13px;font-weight:500;border-top:1px solid var(--line);padding-top:18px}
+  p.body{font-size:15.5px;color:var(--parch-dim);max-width:62ch} p.body b{color:var(--parch)}
+  .verd{color:var(--verd)} .leak{color:var(--leak)} .mux{color:var(--murex)}
+
+  figure{margin:22px 0 0}
+  svg{display:block;width:100%;height:auto}
+  .frame{background:rgba(0,0,0,.16);border:1px solid var(--line);border-radius:8px}
+  figcaption{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--lead-dim);margin-top:9px;line-height:1.7}
+  figcaption b{color:var(--gold-dim)}
+
+  .demo{background:rgba(0,0,0,.2);border:1px solid var(--line);border-radius:8px;padding:16px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+  input[type=text]{flex:1;min-width:170px;background:rgba(0,0,0,.22);border:1px solid var(--line);border-radius:5px;color:var(--parch);
+    font-family:"IBM Plex Mono",monospace;font-size:15px;padding:10px 13px;letter-spacing:.05em}
+  input:focus{outline:none;border-color:rgba(208,122,79,.5)}
+  button{cursor:pointer;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.18));border:1px solid var(--line);
+    border-radius:5px;color:var(--parch);font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.03em;padding:10px 14px;transition:.15s}
+  button:hover{border-color:rgba(208,122,79,.5);background:rgba(208,122,79,.08)} button:active{transform:translateY(1px)}
+  button.primary{border-color:rgba(208,122,79,.55);color:var(--leak)}
+  .strip{display:flex;flex-wrap:wrap;gap:4px;margin-top:13px;min-height:30px}
+  .cell{width:26px;text-align:center}
+  .cell .bar{height:24px;border-radius:3px;margin-bottom:3px}
+  .cell .ch{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--parch)}
+  .cell.bad .ch{color:var(--murex)}
+  .verdict{font-family:"IBM Plex Mono",monospace;font-size:12.5px;margin-top:12px;letter-spacing:.04em;color:var(--lead-dim)}
+  .verdict .rec{color:var(--leak);font-size:15px} .verdict b{color:var(--verd)}
+
+  .methods{display:grid;grid-template-columns:1fr;gap:9px;margin-top:4px}
+  .m{background:rgba(0,0,0,.18);border:1px solid var(--line);border-radius:7px;padding:12px 14px;display:flex;gap:13px;align-items:baseline}
+  .m .nm{font-family:"Cormorant Garamond",serif;font-size:19px;color:var(--leak);flex:0 0 158px}
+  .m .ds{font-size:13.5px;color:var(--parch-dim)} .m .ds b{color:var(--parch)}
+  .m .rb{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--gold-dim);display:block;margin-top:3px;letter-spacing:.04em}
+
+  .note{margin-top:26px;border-top:1px solid var(--line);padding-top:15px;font-family:"IBM Plex Mono",monospace;font-size:11px;line-height:1.85;color:var(--lead-dim)}
+  .note b{color:var(--gold-dim);font-weight:500}
+  .attr{background:rgba(178,74,120,.06);border:1px solid rgba(178,74,120,.25);border-radius:8px;padding:15px 16px;margin-top:6px;font-size:14.5px;color:var(--parch-dim)}
+  .attr b{color:var(--murex)} .attr .v{color:var(--verd)} .attr .l{color:var(--leak)}
+  .foot{display:flex;justify-content:space-between;margin-top:24px;font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--lead-dim);letter-spacing:.06em;flex-wrap:wrap;gap:6px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="eyebrow">audio cipher channels · paper III of VI</div>
+  <h1>Acoustic Side Channels<span class="gk">read the leak · the secret nobody sent</span></h1>
+  <p class="sub">The first two channels were transmitters — you hid a message, or you emitted one. This one has <b>no sender at all</b>. The secret escapes on its own, because a machine's incidental sound is quietly <b>correlated with its internal state</b>: which key you struck, which bit the cipher just multiplied. The attacker only listens. And what leaks, more often than anything, is the <b>key</b>.</p>
+
+  <h2>① the lineage</h2>
+  <figure>
+    <svg class="frame" viewBox="0 0 660 210" role="img" aria-label="Timeline of acoustic side-channel attacks">
+      <text x="24" y="30" fill="#a87f33" font-family="IBM Plex Mono,monospace" font-size="10" letter-spacing="1.5">THE INVOLUNTARY-LEAK LINE — the machine telling on itself</text>
+      <line x1="56" y1="100" x2="610" y2="100" stroke="#9a98a6" stroke-width="1.3"/>
+      <g font-family="IBM Plex Mono,monospace">
+        <circle cx="80" cy="100" r="5.5" fill="#d07a4f"/>
+        <text x="80" y="80" text-anchor="middle" fill="#e9e2d2" font-size="10">ENGULF</text>
+        <text x="80" y="120" text-anchor="middle" fill="#8b8a96" font-size="9">1956</text>
+        <text x="80" y="133" text-anchor="middle" fill="#73b3a3" font-family="Spectral,serif" font-style="italic" font-size="9.5">cipher-machine clicks</text>
+
+        <circle cx="218" cy="100" r="5.5" fill="#d07a4f"/>
+        <text x="218" y="80" text-anchor="middle" fill="#e9e2d2" font-size="10">ASONOV–AGRAWAL</text>
+        <text x="218" y="120" text-anchor="middle" fill="#8b8a96" font-size="9">2004</text>
+        <text x="218" y="133" text-anchor="middle" fill="#73b3a3" font-family="Spectral,serif" font-style="italic" font-size="9.5">keyboard emanations</text>
+
+        <circle cx="356" cy="100" r="5.5" fill="#d07a4f"/>
+        <text x="356" y="80" text-anchor="middle" fill="#e9e2d2" font-size="10">BACKES</text>
+        <text x="356" y="120" text-anchor="middle" fill="#8b8a96" font-size="9">2010</text>
+        <text x="356" y="133" text-anchor="middle" fill="#73b3a3" font-family="Spectral,serif" font-style="italic" font-size="9.5">printer sound → text</text>
+
+        <circle cx="486" cy="100" r="5.5" fill="#d07a4f"/>
+        <text x="486" y="80" text-anchor="middle" fill="#e9e2d2" font-size="10">GENKIN+</text>
+        <text x="486" y="120" text-anchor="middle" fill="#8b8a96" font-size="9">2013–14</text>
+        <text x="486" y="133" text-anchor="middle" fill="#73b3a3" font-family="Spectral,serif" font-style="italic" font-size="9.5">RSA key from coil whine</text>
+
+        <circle cx="598" cy="100" r="5.5" fill="#d9a441"/>
+        <text x="598" y="80" text-anchor="middle" fill="#e9e2d2" font-size="10">DEEP-LEARN</text>
+        <text x="598" y="120" text-anchor="middle" fill="#8b8a96" font-size="9">2023</text>
+        <text x="598" y="133" text-anchor="middle" fill="#73b3a3" font-family="Spectral,serif" font-style="italic" font-size="9.5">typing, over a call</text>
+      </g>
+      <text x="56" y="172" fill="#b9b2a3" font-family="Spectral,serif" font-style="italic" font-size="12.5">From a bugged embassy phone counting rotor clicks to a neural net reading your</text>
+      <text x="56" y="190" fill="#b9b2a3" font-family="Spectral,serif" font-style="italic" font-size="12.5">password off a Zoom call — same physics: <tspan fill="#d07a4f">the work makes a sound shaped like the secret.</tspan></text>
+    </svg>
+    <figcaption><b>note.</b> Genkin–Shamir–Tromer (2013, published 2014) pulled a full 4096-bit RSA key from a laptop's faint coil/capacitor whine during decryption — with a phone beside it, or a mic up to 4 m away.</figcaption>
+  </figure>
+
+  <h2>② the demo — type a secret, hear it leak</h2>
+  <p class="body" style="margin-top:0">Type into the box and press <span class="leak">type it</span>: each key plays its own faint click. Then press <span class="leak">eavesdrop</span> — a listener that never saw the keyboard reads the <i>sound</i> of each click, matches its spectral fingerprint to a key, and reconstructs what you typed.</p>
+  <div class="demo">
+    <div class="row">
+      <input type="text" id="secret" value="the secret key" maxlength="28" autocomplete="off" spellcheck="false">
+      <button id="type">▶ type it</button>
+      <button class="primary" id="spy">⌕ eavesdrop</button>
+    </div>
+    <div class="strip" id="strip"></div>
+    <div class="verdict" id="verdict">type a phrase (letters &amp; spaces), play it, then recover it from sound</div>
+  </div>
+
+  <h2>③ the family of leaks</h2>
+  <div class="methods">
+    <div class="m"><span class="nm">keyboard emanations</span><span class="ds">Every key sounds a hair different — its spot on a faintly flexing board. Asonov &amp; Agrawal trained a net to read keystrokes; by 2023, deep models recover typing from a <b>phone mic or a video call</b>.<span class="rb">target · passwords, messages</span></span></div>
+    <div class="m"><span class="nm">acoustic cryptanalysis</span><span class="ds">A CPU's coils whine differently depending on the operation. Genkin, Shamir &amp; Tromer turned that whine into a <b>full RSA key</b> during GnuPG decryption — phone nearby, or mic 4 m off.<span class="rb">target · the private key itself</span></span></div>
+    <div class="m"><span class="nm">printers &amp; machines</span><span class="ds">Backes reconstructed printed pages from a <b>dot-matrix printer's sound</b>; the CIA once read cleartext from cipher-machine printers; Enigma itself has been probed acoustically.<span class="rb">target · printed/typed plaintext</span></span></div>
+    <div class="m"><span class="nm">mechanical ciphers</span><span class="ds">The oldest leak: ENGULF (1956) read a Hagelin machine's <b>daily key settings</b> by counting the clicks of its rotor-setting through a bugged phone.<span class="rb">target · daily key schedule</span></span></div>
+  </div>
+
+  <h2>④ the inversion — this is the adversary to Paper I</h2>
+  <div class="attr">
+    Every other paper in this set <i>puts</i> information into sound. This one <b>pulls it out</b>. That makes the side channel the exact opposite of a watermark — not insertion but <span class="l">extraction</span> — and it's the threat model your attribution scheme has to survive. If your <span class="v">signing key</span> can be lifted from the whine of the laptop that holds it, then every signature, every anchored hash, every "proof this is mine" collapses at the root. So the defenses run backwards too: not "hide a mark" but <span class="v">break the correlation</span> — acoustic masking and noise, damping and shielding, and cryptographic <i>blinding</i> so the sound a machine makes no longer tracks the bits of the key. The auditor's stance is simply: assume your machine radiates, then ask whether anything it radiates is shaped like a secret.
+  </div>
+
+  <div class="note">
+    <b>what's authentic.</b> the lineage — ENGULF (1956, Wright/MI5), Asonov–Agrawal (2004), Backes (2010), Genkin–Shamir–Tromer (2013–14), deep-learning keyboard attacks (2023) — is real and sourced. the demo genuinely classifies each click by spectral analysis (a Goertzel bank) and reconstructs the text from the audio alone — verified, not faked.
+    <br><b>honest frame.</b> i gave each key a clean, well-separated acoustic fingerprint so the principle is legible. real keyboards leak <i>messy, overlapping</i> fingerprints, which is exactly why the field needed machine learning and language models to climb from "plausible" to ~90%+. the mechanism shown here is real; the difficulty is heavily understated. that gap is the whole research field.
+  </div>
+
+  <div class="foot"><span>PAPER III · ACOUSTIC SIDE CHANNELS — read the leak</span><span>next ▸ IV · AIR-GAP EXFILTRATION — make a silent machine talk</span></div>
+</div>
+
+<script>
+(function(){
+  // charset + per-key acoustic fingerprint frequency
+  const CHARS="abcdefghijklmnopqrstuvwxyz ".split("");
+  const FREQ={}; CHARS.forEach((c,i)=>FREQ[c]=380+i*150); // 380..4280 Hz
+  const SEGDUR=0.12;
+
+  let ctx=null;
+  function makeCtx(){if(!ctx)ctx=new (window.AudioContext||window.webkitAudioContext)();if(ctx.state==='suspended')ctx.resume();return ctx;}
+
+  // one key-click: a damped tone at the key's fingerprint freq + a faint noise attack for "click"
+  function clickBuf(freq,seg,sr){const b=new Float32Array(seg);
+    const tau=sr*0.018,exc=Math.floor(sr*0.002);
+    for(let i=0;i<seg;i++){let v=Math.exp(-i/tau)*Math.sin(2*Math.PI*freq*i/sr);
+      if(i<exc)v+=0.15*(Math.random()*2-1)*(1-i/exc);b[i]=v;}
+    let mx=0;for(let i=0;i<seg;i++)mx=Math.max(mx,Math.abs(b[i]));
+    for(let i=0;i<seg;i++)b[i]=(b[i]/(mx||1))*0.6;
+    return b;}
+  function clean(s){return s.toLowerCase().split("").filter(c=>FREQ[c]!==undefined).join("");}
+  function buildTyping(text,sr){const seg=Math.floor(SEGDUR*sr);const chars=clean(text).split("");
+    const buf=new Float32Array(seg*chars.length);
+    chars.forEach((ch,k)=>{const cb=clickBuf(FREQ[ch],seg,sr);buf.set(cb,k*seg);});
+    return {buf,seg,chars};}
+  function goertzel(buf,start,len,f,sr){const w=2*Math.PI*f/sr,c=2*Math.cos(w);let s1=0,s2=0;
+    for(let i=0;i<len;i++){const s0=buf[start+i]+c*s1-s2;s2=s1;s1=s0;}return s1*s1+s2*s2-c*s1*s2;}
+  function eavesdrop(buf,seg,n,sr){const out=[];
+    for(let k=0;k<n;k++){const st=k*seg;let best=null,bestP=-1;
+      CHARS.forEach(ch=>{const p=goertzel(buf,st,seg,FREQ[ch],sr);if(p>bestP){bestP=p;best=ch;}});
+      out.push(best);}
+    return out;}
+
+  function play(buf){const c=makeCtx();const b=c.createBuffer(1,buf.length,c.sampleRate);
+    (b.copyToChannel?b.copyToChannel(Float32Array.from(buf),0):b.getChannelData(0).set(buf));
+    const s=c.createBufferSource();s.buffer=b;const g=c.createGain();g.gain.value=0.8;s.connect(g).connect(c.destination);s.start();}
+
+  const secret=document.getElementById('secret'),strip=document.getElementById('strip'),verdict=document.getElementById('verdict');
+  function freqColor(f){const t=(f-380)/(4280-380);const h=20+t*200;return `hsl(${h},55%,55%)`;}
+
+  document.getElementById('type').addEventListener('click',()=>{const c=makeCtx();const {buf,chars}=buildTyping(secret.value,c.sampleRate);
+    if(!chars.length){verdict.textContent='type some letters first';return;}
+    play(buf);verdict.innerHTML='▶ typing… each key clicks at its own pitch — the room is listening';strip.innerHTML='';});
+
+  document.getElementById('spy').addEventListener('click',()=>{const c=makeCtx();const {buf,seg,chars}=buildTyping(secret.value,c.sampleRate);
+    if(!chars.length){verdict.textContent='type some letters first';return;}
+    const rec=eavesdrop(buf,seg,chars.length,c.sampleRate);
+    let hits=0;strip.innerHTML='';
+    rec.forEach((ch,i)=>{const ok=ch===chars[i];if(ok)hits++;
+      const cell=document.createElement('div');cell.className='cell'+(ok?'':' bad');
+      const f=FREQ[ch];cell.innerHTML=`<div class="bar" style="background:${freqColor(f)}"></div><div class="ch">${ch===' '?'␣':ch}</div>`;
+      strip.appendChild(cell);});
+    const acc=Math.round(100*hits/chars.length);
+    verdict.innerHTML=`typed&nbsp; <b>${clean(secret.value)}</b><br>heard <span class="rec">${rec.join('').replace(/ /g,'␣')}</span> &nbsp; `+
+      (acc===100?'<b>✓ fully recovered from sound</b>':`<b>${acc}% recovered</b>`);});
+
+  window.__leak={buildTyping,eavesdrop,clean};
+})();
+</script>
+</body>
+</html>
