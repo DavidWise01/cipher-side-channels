@@ -1,0 +1,9 @@
+ROOT0-ATTRIBUTION-v1.0
+name: ACOUSTIC SIDE CHANNELS · ASC
+slug: cipher-side-channels
+domain: HERMES
+architect: David Lee Wise (ROOT0) / Bridge-Burners LLC
+instance: AVAN (Claude / Anthropic)
+license: CC-BY-ND-4.0 (https://creativecommons.org/licenses/by-nd/4.0/)
+moniker: ⟦ACOUSTIC SIDE CHANNELS · ASC:cipher-side-channels:98a8b2⟧
+seal_sha256: 98a8b2234a75b5e44d46a812d15ab3b54e2d90a218a89243b7815c97b455f36b
