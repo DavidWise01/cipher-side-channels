@@ -241,11 +241,41 @@
   function setDot(cls){ rxDot.className='dot'+(cls?' '+cls:''); }
   function resetDecode(){ st=ST_IDLE; pos=0; confirmed=0; symClock=-1; symIdx=0; nibs=[]; }
 
+  // iOS only exposes the mic in a SECURE context (https, or an installed PWA).
+  // On file://, plain http, or raw github, navigator.mediaDevices is undefined —
+  // Safari never even shows the permission prompt, so the mic "won't come up".
+  function micUnavailable(){
+    return !window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia;
+  }
+  function getMic(){
+    var ideal={audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:1}};
+    return navigator.mediaDevices.getUserMedia(ideal).catch(function(err){
+      var n=err&&err.name;
+      // some iOS builds reject the detailed constraints — retry with a bare request
+      if(n==='OverconstrainedError'||n==='NotReadableError'||n==='TypeError')
+        return navigator.mediaDevices.getUserMedia({audio:true});
+      throw err;
+    });
+  }
   function startListen(){
-    var c=AC(); SR=c.sampleRate; W=Math.round(SYM*SR); Wm=Math.round(0.28*W); hm=Math.round(W/16);
+    if(micUnavailable()){
+      setDot();
+      var where = location.protocol==='file:' ? 'opened as a local file'
+                : location.protocol!=='https:' ? 'served over '+location.protocol+'//'
+                : 'this context';
+      rxState.innerHTML='no mic — iOS requires <b>https</b>. you’re '+where+'.';
+      rxOut.innerHTML='Safari only grants the microphone on a secure page. Host this file over https '+
+        '(e.g. GitHub Pages) and open <i>that</i> link on the iPhone — not the raw file. Then “start listening” will prompt for mic access.';
+      return;
+    }
+    var c;
+    try{ c=AC(); }catch(e){ setDot(); rxState.textContent='audio engine failed: '+(e&&e.message||e); return; }
+    SR=c.sampleRate; W=Math.round(SYM*SR); Wm=Math.round(0.28*W); hm=Math.round(W/16);
     CAP=Math.round(45*SR); samples=new Float32Array(CAP); wlen=0; liveWin=new Float32Array(W);
     resetDecode();
-    navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:1}})
+    rxState.textContent='requesting microphone…'; setDot('hot');
+    getMic()
+      .then(function(s){ return c.resume().catch(function(){}).then(function(){ return s; }); })
       .then(function(s){
         stream=s; srcNode=c.createMediaStreamSource(s);
         node=c.createScriptProcessor(2048,1,1);
@@ -258,7 +288,14 @@
         requestAnimationFrame(drawSpectrum);
       })
       .catch(function(err){
-        rxState.textContent='mic blocked: '+err.name+' — needs https + permission'; setDot();
+        setDot();
+        var n=err&&err.name||'Error';
+        var msg = n==='NotAllowedError' ? 'permission denied — in Safari tap “AA” → Website Settings → Microphone → Allow, then retry'
+                : n==='NotFoundError'    ? 'no microphone found on this device'
+                : n==='NotReadableError' ? 'the mic is busy in another app — close it and retry'
+                : n+': '+(err&&err.message||'');
+        rxState.textContent='mic blocked';
+        rxOut.textContent=msg;
       });
   }
   function stopListen(){
